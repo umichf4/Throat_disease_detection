@@ -8,8 +8,15 @@ import numpy as np
 import cv2
 
 img = cv2.imread('../Dataset/Test.jpg') # JPG is yuv
-img_y = img[:,:,0]
+img_y = img[:,:,0] # gray image
+cv2.namedWindow('img', cv2.WINDOW_KEEPRATIO)
+cv2.imshow("img", img)
+cv2.waitKey(0)
 
-cv2.namedWindow('demo', 0)
-cv2.imshow("img_y", img)
+img_channels = cv2.split(img)
+img_channels[0] = cv2.equalizeHist(img_channels[0])
+
+img = cv2.merge(img_channels)
+cv2.namedWindow('img after equalizeHist', cv2.WINDOW_KEEPRATIO)
+cv2.imshow("img after equalizeHist", img)
 cv2.waitKey(0)
