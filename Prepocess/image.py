@@ -154,11 +154,41 @@ class Image(object):
         r = self.balance_channel(self.img[:,:,2], cutoff)
         return cv2.merge((b,g,r))
 
-def AWB(src, cutoff):
-    image = Image()
-    image.open(src)       
-    return image.balance_white(cutoff=cutoff)
+    def edge_canny(self):
+        blurred = cv2.GaussianBlur(self.img, (3, 3), 0)
+        blurred = cv2.cvtColor(blurred, cv2.COLOR_YUV2BGR)
+        gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+        edge_output = cv2.Canny(gray, 50, 150)
+        edge_output = erode_dilate(edge_output)
+        edge_output = removeSmallComponents(edge_output, 400)
+        # cv2.imshow("Canny Edge", edge_output)
+        dst = cv2.bitwise_and(self.img, self.img, mask=edge_output)
 
+        return edge_output, dst
+    
+def erode_dilate(image):
+    struc = 5
+    kernelErosion = np.ones((struc, struc), np.uint8)
+    kernelDilation = np.ones((struc, struc), np.uint8)
+    # open
+    # new_img = cv2.erode(image, kernelErosion, iterations=2)
+    # new_img = cv2.dilate(new_img, kernelDilation, iterations=2)
+    # close
+    new_img = cv2.dilate(image, kernelDilation, iterations=2)
+    new_img = cv2.erode(new_img, kernelErosion, iterations=2)
 
+    return new_img
+
+def removeSmallComponents(image, threshold): 
+    # find all your connected components (white blobs in your image) 
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(image, connectivity=8) 
+    sizes = stats[1:, -1] 
+    nb_components = nb_components - 1 
+    img2 = np.zeros(output.shape, dtype=np.uint8) 
+    # for every component in the image, you keep it only if it's above threshold 
+    for i in range(0, nb_components): 
+        if sizes[i] >= threshold: 
+            img2[output == i + 1] = 255 
+    return img2 
 
 
