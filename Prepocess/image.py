@@ -1,6 +1,7 @@
 #from pathlib import Path
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt 
 #import sys
 
 def gradient(x, axis):
@@ -79,10 +80,10 @@ class Image(object):
         '''
             Show the image(BGR)
         '''
-        cv2.namedWindow('img', cv2.WINDOW_KEEPRATIO)
-        image_BGR = cv2.cvtColor(self.img, cv2.COLOR_YUV2BGR)
-        cv2.imshow("img", image_BGR)
-        cv2.waitKey(0)
+        image_RGB = cv2.cvtColor(self.img, cv2.COLOR_YUV2RGB)
+        plt.figure("Image")
+        plt.imshow(image_RGB)
+        plt.show()
 
     def edge_canny(self, thr_min=50, thr_max=150, thresh=150, struc=5, remove_threshold=200):
         '''
