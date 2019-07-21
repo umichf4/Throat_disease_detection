@@ -45,7 +45,8 @@ def main():
 
     # after = image.correct_exposure()
     # image.img = image.constrast_limit()
-    after = image.adjust_gamma()
+    image.img = image.adjust_gamma()
+    after = image.edge_canny()
     # after = image.balance_white(cutoff=5)
 
     # after = image.denoise_channel(image.grayscaled, weight=25, error_tolerance=1e-8, iterations=500)

@@ -182,6 +182,27 @@ class Image(object):
         new_img = cv2.convertScaleAbs(new_img)
         return new_img
 
+    def edge_canny(self):
+        blurred = cv2.GaussianBlur(self.img, (3, 3), 0)
+        gray = cv2.cvtColor(blurred, cv2.COLOR_RGB2GRAY)
+        edge_output = cv2.Canny(gray, 50, 150)
 
+        # cv2.imshow("Canny Edge", edge_output)
+        dst = cv2.bitwise_and(self.img, self.img, mask=edge_output)
+
+        return dst
+
+    def erode_dilate(image):
+
+        kernelErosion = np.ones((2, 2), np.uint8)
+        kernelDilation = np.ones((2, 2), np.uint8)
+        # open
+        # new_img = cv2.erode(image, kernelErosion, iterations=2)
+        # new_img = cv2.dilate(new_img, kernelDilation, iterations=2)
+        # close
+        new_img = cv2.dilate(image, kernelDilation, iterations=2)
+        new_img = cv2.erode(new_img, kernelErosion, iterations=2)
+
+        return new_img
 
 
