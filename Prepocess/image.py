@@ -15,6 +15,30 @@ def divergence(x, axis):
     """
     return x - np.roll(x, 1, axis=axis)
 
+def erode_dilate(image, struc):
+    kernelErosion = np.ones((struc, struc), np.uint8)
+    kernelDilation = np.ones((struc, struc), np.uint8)
+    # open
+    # new_img = cv2.erode(image, kernelErosion, iterations=2)
+    # new_img = cv2.dilate(new_img, kernelDilation, iterations=2)
+    # close
+    new_img = cv2.dilate(image, kernelDilation, iterations=2)
+    new_img = cv2.erode(new_img, kernelErosion, iterations=2)
+
+    return new_img
+
+def removeSmallComponents(image, threshold): 
+    # find all your connected components (white blobs in your image) 
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(image, connectivity=8) 
+    sizes = stats[1:, -1] 
+    nb_components = nb_components - 1 
+    img2 = np.zeros(output.shape, dtype=np.uint8) 
+    # for every component in the image, you keep it only if it's above threshold 
+    for i in range(0, nb_components): 
+        if sizes[i] >= threshold: 
+            img2[output == i + 1] = 255 
+    return img2 
+
 class Image(object):
 
     def __init__(self):
@@ -38,39 +62,106 @@ class Image(object):
 #            raise IOError("Could not open image!")
 
         self.img = img
-        self.grayscaled = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
+        self.grayscaled = self.img[:,:,0]
         self.height, self.width, self.channel_count = self.img.shape
 
-    def correct_exposure(self):
+    def histogram_equalization(self):
         """
             Corrects over/under exposure in images by using
             histogram equalization.
         """
-        histogram, bins = np.histogram(self.grayscaled.ravel(), 256, [0, 256])
+        img_channels = cv2.split(self.img)
+        img_channels[0] = cv2.equalizeHist(img_channels[0])
+        self.img = cv2.merge(img_channels)
+        return self.img
 
-        # Cumulative sums
-        cumsum = histogram.cumsum()
+    def imshow(self):
+        '''
+            Show the image(BGR)
+        '''
+        cv2.namedWindow('img', cv2.WINDOW_KEEPRATIO)
+        image_BGR = cv2.cvtColor(self.img, cv2.COLOR_YUV2BGR)
+        cv2.imshow("img", image_BGR)
+        cv2.waitKey(0)
 
-        # Normalize cumulative sums
-        cumsum_norm = cumsum * histogram.max() / cumsum.max()
+    def edge_canny(self, thr_min=50, thr_max=150, thresh=150, struc=5, remove_threshold=200):
+        '''
+            Apply the Canny alg
+            edge_out is the mask
+        '''
+        blurred = cv2.GaussianBlur(self.img, (3, 3), 0)
+        #blurred = cv2.cvtColor(blurred, cv2.COLOR_YUV2BGR)
+       # gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+        gray = blurred[:,:,0]
+        _, gray = cv2.threshold(src=gray, thresh=150, maxval=255, type=cv2.THRESH_TOZERO_INV)
+        edge_output = cv2.Canny(gray, thr_min, thr_max)
+        edge_output = erode_dilate(edge_output, struc)
+        edge_output = removeSmallComponents(edge_output, remove_threshold)
+        # cv2.imshow("Canny Edge", edge_output)
+        dst = cv2.bitwise_and(self.img, self.img, mask=edge_output)
 
-        # Create masked array to modify each pixel faster
-        masked_cumsum = np.ma.masked_equal(cumsum, 0)
+        return edge_output, dst
+    
+    def gamma_trans_gray(self, gamma):
+        '''
+            Apply the gamma transformation in the gray image 
+        '''
+        # 具体做法是先归一化到1，然后gamma作为指数值求出新的像素值再还原
+        gamma_table = [np.power(x/255.0, gamma)*255.0 for x in range(256)]
+        gamma_table = np.round(np.array(gamma_table)).astype(np.uint8)
+        self.grayscaled = cv2.LUT(self.grayscaled, gamma_table)
+        self.img = cv2.merge((self.grayscaled, self.img[:,:,1], self.img[:,:,2]))
+        # 实现这个映射用的是OpenCV的查表函数
+        return self.img
+    
+    def balance_channel(self, channel, cutoff=5):
+        """
+            Applies GIMP's white balancing algorithm.
+            Cuts off the low cutoff% values the channel,
+            and then stretches the image along the new
+            range, creating histogram gaps.
+        """
 
-        masked_cumsum = (masked_cumsum - masked_cumsum.min()) * 255 / (masked_cumsum.max() - masked_cumsum.min())
-        cumsum = np.ma.filled(masked_cumsum, 0).astype('uint8')
+        # low value - cutoff% of the array are lower than this value
+        # high value - 100-cutoff% of the array are lower than this value
+        #
 
-        out = cumsum[self.img]
-        return out
+        low = np.percentile(channel, cutoff)
+        high = np.percentile(channel, 100 - cutoff)
+
+        # (high - low) is the new range, basically cutoff% are
+        # cut off from each end, because too little pixels have
+        # them.
+        new_channel = ((channel - low) * 255.0 / (high - low))
+
+        # Convert back to uint8
+        channel = np.uint8(np.clip(new_channel, 0, 255))
+        return channel
+
+    def balance_white(self, cutoff):
+        """
+            Wrapper for white balance algorithm
+            to balance all channels of an image.
+        """
+        self.img = cv2.cvtColor(self.img, cv2.COLOR_YUV2BGR)
+        b = self.balance_channel(self.img[:,:,0], cutoff)
+        g = self.balance_channel(self.img[:,:,1], cutoff)
+        r = self.balance_channel(self.img[:,:,2], cutoff)
+        self.img = cv2.merge((b,g,r))
+        self.img = cv2.cvtColor(self.img, cv2.COLOR_BGR2YUV)
+        return self.img
 
     def denoise_image(self,weight=10, error_tolerance=1e-3):
         """
             Denoises every channel in an image.
         """
+        self.img = cv2.cvtColor(self.img, cv2.COLOR_YUV2BGR)
         b = self.denoise_channel(self.img[:, :, 0], weight=weight, error_tolerance=error_tolerance)
         g = self.denoise_channel(self.img[:, :, 1], weight=weight, error_tolerance=error_tolerance)
         r = self.denoise_channel(self.img[:, :, 2], weight=weight, error_tolerance=error_tolerance)
-        return cv2.merge((b,g,r))
+        self.img = cv2.merge((b,g,r))
+        self.img = cv2.cvtColor(self.img, cv2.COLOR_BGR2YUV)
+        return self.img
 
     def denoise_channel(self, channel, weight=0.1, error_tolerance=1e-3, iterations=200):
         """
@@ -120,75 +211,7 @@ class Image(object):
 
         return u
 
-    def balance_channel(self, channel, cutoff=5):
-        """
-            Applies GIMP's white balancing algorithm.
-            Cuts off the low cutoff% values the channel,
-            and then stretches the image along the new
-            range, creating histogram gaps.
-        """
-
-        # low value - cutoff% of the array are lower than this value
-        # high value - 100-cutoff% of the array are lower than this value
-        #
-
-        low = np.percentile(channel, cutoff)
-        high = np.percentile(channel, 100 - cutoff)
-
-        # (high - low) is the new range, basically cutoff% are
-        # cut off from each end, because too little pixels have
-        # them.
-        new_channel = ((channel - low) * 255.0 / (high - low))
-
-        # Convert back to uint8
-        channel = np.uint8(np.clip(new_channel, 0, 255))
-        return channel
-
-    def balance_white(self, cutoff):
-        """
-            Wrapper for white balance algorithm
-            to balance all channels of an image.
-        """
-        b = self.balance_channel(self.img[:,:,0], cutoff)
-        g = self.balance_channel(self.img[:,:,1], cutoff)
-        r = self.balance_channel(self.img[:,:,2], cutoff)
-        return cv2.merge((b,g,r))
-
-    def edge_canny(self):
-        blurred = cv2.GaussianBlur(self.img, (3, 3), 0)
-        blurred = cv2.cvtColor(blurred, cv2.COLOR_YUV2BGR)
-        gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
-        edge_output = cv2.Canny(gray, 50, 150)
-        edge_output = erode_dilate(edge_output)
-        edge_output = removeSmallComponents(edge_output, 400)
-        # cv2.imshow("Canny Edge", edge_output)
-        dst = cv2.bitwise_and(self.img, self.img, mask=edge_output)
-
-        return edge_output, dst
     
-def erode_dilate(image):
-    struc = 5
-    kernelErosion = np.ones((struc, struc), np.uint8)
-    kernelDilation = np.ones((struc, struc), np.uint8)
-    # open
-    # new_img = cv2.erode(image, kernelErosion, iterations=2)
-    # new_img = cv2.dilate(new_img, kernelDilation, iterations=2)
-    # close
-    new_img = cv2.dilate(image, kernelDilation, iterations=2)
-    new_img = cv2.erode(new_img, kernelErosion, iterations=2)
 
-    return new_img
-
-def removeSmallComponents(image, threshold): 
-    # find all your connected components (white blobs in your image) 
-    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(image, connectivity=8) 
-    sizes = stats[1:, -1] 
-    nb_components = nb_components - 1 
-    img2 = np.zeros(output.shape, dtype=np.uint8) 
-    # for every component in the image, you keep it only if it's above threshold 
-    for i in range(0, nb_components): 
-        if sizes[i] >= threshold: 
-            img2[output == i + 1] = 255 
-    return img2 
 
 
