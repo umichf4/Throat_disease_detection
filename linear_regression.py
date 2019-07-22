@@ -62,8 +62,7 @@ def normalize(data):
     return (data - np.min(data)) / _range
 
 
-def run():
-    mask = np.load("mask_rotated_135.npy")
+def run(mask):
     index = np.nonzero(mask)
     points = normalize(np.column_stack((index[1], index[0])))
     learning_rate = 0.01
@@ -77,7 +76,9 @@ def run():
     print("After {0} iterations b = {1}, m = {2}, error = {3}"
           .format(i, b, m, compute_error_for_line_given_points(b, m, points)))
     plot_pic(points, b, m)
+    return m
 
 
 if __name__ == '__main__':
-    run()
+    mask = np.load("mask_rotated_135.npy")
+    run(mask)

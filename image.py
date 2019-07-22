@@ -1,8 +1,9 @@
-#from pathlib import Path
+# from pathlib import Path
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt 
-#import sys
+from matplotlib import pyplot as plt
+# import sys
+
 
 def gradient(x, axis):
     """
@@ -91,8 +92,8 @@ class Image(object):
             edge_out is the mask
         '''
         blurred = cv2.GaussianBlur(self.img, (3, 3), 0)
-        #blurred = cv2.cvtColor(blurred, cv2.COLOR_YUV2BGR)
-       # gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+        # blurred = cv2.cvtColor(blurred, cv2.COLOR_YUV2BGR)
+        # gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
         gray = blurred[:,:,0]
         _, gray = cv2.threshold(src=gray, thresh=150, maxval=255, type=cv2.THRESH_TOZERO_INV)
         edge_output = cv2.Canny(gray, thr_min, thr_max)
@@ -114,7 +115,15 @@ class Image(object):
         self.img = cv2.merge((self.grayscaled, self.img[:,:,1], self.img[:,:,2]))
         # 实现这个映射用的是OpenCV的查表函数
         return self.img
-    
+
+    def laplace_sharpen(self):
+        kernel_sharpen = np.array([
+            [-1, -1, -1],
+            [-1, 9, -1],
+            [-1, -1, -1]])
+        self.img = cv2.filter2D(self.img, -1, kernel_sharpen)
+        return self.img
+
     def balance_channel(self, channel, cutoff=5):
         """
             Applies GIMP's white balancing algorithm.
