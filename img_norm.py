@@ -86,17 +86,18 @@ if __name__ == '__main__':
         img_corrected_hist_yuv = yuv_histeq(img_corrected_rgb)
         img_hist_corrected_yuv = rgb_norm(img_hist_yuv)
 
+        # img_lab = cv2.cvtColor(img_ori, cv2.COLOR_BGR2Lab)
+        # img_show = cv2.cvtColor(img_lab, cv2.COLOR_lab2)
+
         # gray_1 = cv2.cvtColor(img_hist_yuv, cv2.COLOR_RGB2GRAY)
         # gray_2 = cv2.cvtColor(img_hist_corrected_yuv, cv2.COLOR_RGB2GRAY)
         # gray_all = np.hstack((gray_1, gray_2))
 
-        img_row_1 = np.hstack((img_corrected_rgb, img_hist_yuv))
+        img_row_1 = np.hstack((img_ori, img_hist_yuv))
         img_row_2 = np.hstack((img_corrected_hist_yuv, img_hist_corrected_yuv))
         img_all = np.vstack((img_row_1, img_row_2))
 
-        # img_corrected_hist_
-
-        # cv2.imwrite(img_single + '_corrected.jpg', img_corrected)
+        cv2.imwrite(img_single + '_corrected_hist.jpg', img_hist_corrected_yuv)
 
         cv2.namedWindow(img_single, cv2.WINDOW_FREERATIO)
         cv2.imshow(img_single, img_all)
