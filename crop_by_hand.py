@@ -14,6 +14,10 @@ def on_mouse(event, x, y, flags, param):
         cv2.circle(img2, point1, 10, (0, 255, 0), 2)
         cv2.namedWindow(pic, cv2.WINDOW_NORMAL)
         cv2.imshow(pic, img2)
+    elif event == cv2.EVENT_RBUTTONDOWN:
+        cv2.namedWindow(pic, cv2.WINDOW_NORMAL)
+        cv2.imshow(pic, img2)
+        cv2.imwrite(new_old, img2)
     elif event == cv2.EVENT_MOUSEMOVE and (flags & cv2.EVENT_FLAG_LBUTTON):  # 按住左键拖曳
         cv2.rectangle(img2, point1, (x, y), (255, 0, 0), 2)
         cv2.namedWindow(pic, cv2.WINDOW_NORMAL)
@@ -34,8 +38,8 @@ def on_mouse(event, x, y, flags, param):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input', type=str, default="dataset")
-    parser.add_argument('-o', '--output', type=str, default="dataset")
+    parser.add_argument('-i', '--input', type=str, default="C:\\Users\\Brandon Han\\Downloads\\pharyngitis-red")
+    parser.add_argument('-o', '--output', type=str, default="E:\\Umich\\Dataset\\unlabeled")
     args = parser.parse_args()
 
     input_path = args.input
@@ -52,12 +56,20 @@ if __name__ == '__main__':
         point2 = (0, 0)
         pic_type = os.path.splitext(pic)[1]
         new_dir = os.path.join(output_path, str(count).zfill(4) + pic_type)
+        new_old = os.path.join(output_path, pic)
         old_dir = os.path.join(input_path, pic)
 
-        img = cv2.imread(old_dir)
+        try:
+            img = cv2.imread(old_dir)
+        except:
+            continue
         cv2.namedWindow(pic, cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback(pic, on_mouse, [img, new_dir, pic])
-        cv2.imshow(pic, img)
+        cv2.setMouseCallback(pic, on_mouse, [img, new_dir, pic, new_old])
+        try:
+            cv2.imshow(pic, img)
+        except:
+            cv2.destroyAllWindows()
+            continue
         key = cv2.waitKey()
         if key == 27:
             break
