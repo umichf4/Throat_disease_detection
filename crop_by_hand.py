@@ -38,7 +38,7 @@ def on_mouse(event, x, y, flags, param):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input', type=str, default="C:\\Users\\Brandon Han\\Downloads\\pharyngitis-red")
+    parser.add_argument('-i', '--input', type=str, default="C:\\Users\\Brandon Han\\Downloads\\original")
     parser.add_argument('-o', '--output', type=str, default="E:\\Umich\\Dataset\\unlabeled")
     args = parser.parse_args()
 
